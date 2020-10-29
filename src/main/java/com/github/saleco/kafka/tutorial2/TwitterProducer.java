@@ -25,10 +25,10 @@ public class TwitterProducer {
 
   private static final Logger logger = LoggerFactory.getLogger(TwitterProducer.class.getName());
 
-  private String consumerKey = "XXXXXXXXXXXX";
-  private String consumerSecret = "XXXXXXXXXXXXXXXXXXXXXX";
-  private String token = "XXXXXXXXXXXXXXXXXXXXXX";
-  private String secret = "XXXXXXXXXXXXXXXXXXXXXXXXXX";
+  private String consumerKey = "kuky8ei2BUJzJqZLUDoukROIM";
+  private String consumerSecret = "b7SquuH68AmV9ceMOI5ieJlAnXxSD4cGv9ob8OFcYfpWMwAZpG";
+  private String token = "57474810-YpCiuLFhE8w4FBfB8vAzScmEo44xovYkgcw0WSgg1";
+  private String secret = "Ws0Mtu9h0GAPjeLKnQQDq1ZDS0l6Hqsnm0lfVb0zhVEoO";
 
   private List<String> terms = Lists.newArrayList("kafka");
 
@@ -75,7 +75,9 @@ public class TwitterProducer {
         client.stop();
       }
       if (msg != null) {
+
         logger.info(msg);
+
         producer.send(new ProducerRecord<>("twitter_tweets", null, msg), new Callback() {
           @Override
           public void onCompletion(RecordMetadata recordMetadata, Exception e) {
@@ -85,6 +87,7 @@ public class TwitterProducer {
           }
         });
       }
+
     }
     logger.info("End of application");
   }
@@ -98,6 +101,13 @@ public class TwitterProducer {
     properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
     properties.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     properties.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+    properties.setProperty(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true");
+
+    //This will be done by default when enabling idempotence
+    properties.setProperty(ProducerConfig.ACKS_CONFIG, "all");
+    properties.setProperty(ProducerConfig.RETRIES_CONFIG, Integer.toString(Integer.MAX_VALUE));
+    properties.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");  //kafka 2.0 >= 1.1 so we can keep this as 5. Use 1 otherwise
+
 
     //create the producer
     KafkaProducer<String, String> producer = new KafkaProducer<String, String>(properties);
