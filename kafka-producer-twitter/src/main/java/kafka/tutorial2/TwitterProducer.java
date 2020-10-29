@@ -1,4 +1,4 @@
-package com.github.saleco.kafka.tutorial2;
+package kafka.tutorial2;
 
 import com.google.common.collect.Lists;
 import com.twitter.hbc.ClientBuilder;
@@ -30,7 +30,7 @@ public class TwitterProducer {
   private String token = "57474810-YpCiuLFhE8w4FBfB8vAzScmEo44xovYkgcw0WSgg1";
   private String secret = "Ws0Mtu9h0GAPjeLKnQQDq1ZDS0l6Hqsnm0lfVb0zhVEoO";
 
-  private List<String> terms = Lists.newArrayList("kafka");
+  private List<String> terms = Lists.newArrayList("bitcoin", "usa", "politics", "sport", "soccer");
 
   public TwitterProducer() {
 
@@ -108,6 +108,19 @@ public class TwitterProducer {
     properties.setProperty(ProducerConfig.RETRIES_CONFIG, Integer.toString(Integer.MAX_VALUE));
     properties.setProperty(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, "5");  //kafka 2.0 >= 1.1 so we can keep this as 5. Use 1 otherwise
 
+
+    //Enable message compression
+    //Test for chekcing best option to your case (perfect for text based messages)
+    properties.setProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "snappy");
+
+    //High Througput producer (at the expense of a bit of latency and CPU usage)
+    //Enable Batch Size to increse thoughput maintaining very low latency (also have higher compression ratio)
+    //You can moinitor the average batch size metric using Kafka Producer Metrics
+    properties.setProperty(ProducerConfig.BATCH_SIZE_CONFIG, Integer.toString(32*1024)); //32KB batch size
+
+    //Linger.ms Number of milliseconds a producer is willing to wait before sending a batch out (default 0)
+    //By introducing some lag (for example linger.ms=5) we increase the chances of messages being sent together in a batch (more effective sending)
+    properties.setProperty(ProducerConfig.LINGER_MS_CONFIG, "20");
 
     //create the producer
     KafkaProducer<String, String> producer = new KafkaProducer<String, String>(properties);

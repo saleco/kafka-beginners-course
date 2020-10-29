@@ -1,4 +1,4 @@
-package com.github.saleco.kafka.tutorial1;
+package kafka.tutorial1;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -12,13 +12,13 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-public class ConsumerDemoGroups {
+public class ConsumerDemo {
 
-  private static final Logger logger = LoggerFactory.getLogger(ConsumerDemoGroups.class.getName());
+  private static final Logger logger = LoggerFactory.getLogger(ConsumerDemo.class.getName());
 
   public static void main(String[] args) {
     String bootstrapServers = "127.0.0.1:9092";
-    String groupId = "my-fifth-application";
+    String groupId = "my-fourth-application";
     String topic = "first_topic";
 
     //create Producer properties
