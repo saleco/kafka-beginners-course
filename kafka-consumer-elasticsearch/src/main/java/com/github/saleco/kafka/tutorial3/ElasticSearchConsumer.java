@@ -12,6 +12,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -42,42 +44,53 @@ public class ElasticSearchConsumer {
     while(true) {
       ConsumerRecords<String, String> consumerRecords = consumer.poll(Duration.ofMillis(100));
 
+      Integer recordCount = consumerRecords.count();
+
       logger.info("Received " + consumerRecords.count() + " records");
 
+      BulkRequest bulkRequest = new BulkRequest();
+
       for(ConsumerRecord<String, String> record : consumerRecords) {
+
         //2 strategies to create ID
            // kafka generic ID
           //String id = record.topic() + "_" + record.partition() + "_" + record.offset();
 
         //twitter feed specific id
-        String id = extractIdFromTweet(record.value());
+        //avoid null pointer
+        try {
+          String id = extractIdFromTweet(record.value());
 
-        //insert data into elastic search
-        IndexRequest indexRequest = new IndexRequest(
-            "twitter",
-            "tweets",
-                 id) //id to make consumer idempotent
-            .source(record.value(), XContentType.JSON);
+          //insert data into elastic search
+          IndexRequest indexRequest = new IndexRequest(
+              "twitter",
+              "tweets",
+              id) //id to make consumer idempotent
+              .source(record.value(), XContentType.JSON);
 
-        IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
+          bulkRequest.add(indexRequest); //add index request to our bulk request
+        } catch (NullPointerException e) {
+          logger.warn("skipping bad data: " + record.value());
+        }
 
-        logger.info(indexResponse.getId());
+
+
+
+      }
+
+      if(recordCount > 0 ) {
+        //Bulk insert the index requests
+        BulkResponse bulkItemResponses = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+
+        logger.info("Comitting the offsets...");
+        consumer.commitSync();
+        logger.info("Offsets have been commited");
 
         try {
-          Thread.sleep(1000); //introduce a small delay
+          Thread.sleep(1000);
         } catch (InterruptedException e) {
           e.printStackTrace();
         }
-      }
-
-      logger.info("Comitting the offsets...");
-      consumer.commitSync();
-      logger.info("Offsets have been commited");
-
-      try {
-        Thread.sleep(1000);
-      } catch (InterruptedException e) {
-        e.printStackTrace();
       }
 
     }
@@ -89,7 +102,8 @@ public class ElasticSearchConsumer {
   private static String extractIdFromTweet(String tweetJson) {
     //gson library to get id from tweet
     return jsonParser.parse(tweetJson)
-      .getAsJsonObject().get("id_str")
+      .getAsJsonObject()
+      .get("id_str")
       .getAsString();
   }
 
@@ -103,7 +117,6 @@ public class ElasticSearchConsumer {
     credentialsProvider.setCredentials(AuthScope.ANY,
         new UsernamePasswordCredentials(username, password));
 
-    HttpHost[] hosts;
     RestClientBuilder builder = RestClient.builder(
         new HttpHost(hostname, 443, "https")
     ).setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
@@ -131,7 +144,7 @@ public class ElasticSearchConsumer {
     properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
     properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false"); //disable auto commit of offsets
-    properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "10"); //setup max records for each fetch
+    properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100"); //setup max records for each fetch
 
     //create consumer
     KafkaConsumer<String, String> kafkaConsumer = new KafkaConsumer<String, String>(properties);
